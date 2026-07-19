@@ -297,6 +297,35 @@ fn withdraw_submission_removes_anchor() {
 }
 
 #[test]
+fn remove_submission_on_nonexistent_entry_does_not_corrupt_counter() {
+    let ctx = setup();
+    let id = create_hackathon(&ctx);
+
+    let submitter = Address::generate(&ctx.env);
+    ctx.events.submit(
+        &id,
+        &submitter,
+        &String::from_str(&ctx.env, "ipfs://Qm.../v1.json"),
+        &BytesN::random(&ctx.env),
+    );
+
+    // ctx.applicant never submitted — calling the low-level storage helper
+    // directly for it must be a no-op, not decrement the counter that
+    // `submitter`'s real submission incremented.
+    ctx.env.as_contract(&ctx.events_id, || {
+        storage::remove_submission(&ctx.env, id, &ctx.applicant);
+    });
+
+    let count = ctx
+        .env
+        .as_contract(&ctx.events_id, || storage::submission_count(&ctx.env, id));
+    assert_eq!(
+        count, 1,
+        "removing a nonexistent submission must not corrupt the counter"
+    );
+}
+
+#[test]
 fn withdraw_submission_frees_the_slot_for_future_submitters() {
     let ctx = setup();
     let id = create_hackathon(&ctx);

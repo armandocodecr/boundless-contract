@@ -430,6 +430,14 @@ pub fn set_submission(env: &Env, id: u64, applicant: &Address, submission: &Subm
 }
 
 pub fn remove_submission(env: &Env, id: u64, applicant: &Address) {
+    // Idempotent: a no-op when there is nothing to remove, symmetrically
+    // with append_submission, so a caller that skips its own existence
+    // check can't silently corrupt the counter by decrementing for an
+    // applicant that never had a submission.
+    if get_submission(env, id, applicant).is_none() {
+        return;
+    }
+
     let key = DataKey::EventSubmission(id, applicant.clone());
     env.storage().persistent().remove(&key);
 
