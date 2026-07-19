@@ -432,6 +432,43 @@ pub fn set_submission(env: &Env, id: u64, applicant: &Address, submission: &Subm
 pub fn remove_submission(env: &Env, id: u64, applicant: &Address) {
     let key = DataKey::EventSubmission(id, applicant.clone());
     env.storage().persistent().remove(&key);
+
+    let count_key = DataKey::EventSubmissionCount(id);
+    let next = submission_count(env, id).saturating_sub(1);
+    if next == 0 {
+        env.storage().persistent().remove(&count_key);
+    } else {
+        env.storage().persistent().set(&count_key, &next);
+        touch_event_persistent(env, &count_key);
+    }
+}
+
+pub fn submission_count(env: &Env, id: u64) -> u32 {
+    let key = DataKey::EventSubmissionCount(id);
+    let n: Option<u32> = env.storage().persistent().get(&key);
+    if n.is_some() {
+        touch_event_persistent(env, &key);
+    }
+    n.unwrap_or(0)
+}
+
+/// Reserve a submission slot against the per-event cap before writing the
+/// entry (mirrors `append_contributor`/`append_applicant`). A no-op when the
+/// applicant already has a submission — re-submission updates the existing
+/// entry in place and must not recount against the cap.
+pub fn append_submission(env: &Env, id: u64, addr: &Address, cap: u32) -> Result<(), Error> {
+    if get_submission(env, id, addr).is_some() {
+        return Ok(());
+    }
+    let cur = submission_count(env, id);
+    if cur >= cap {
+        return Err(Error::TooManySubmissions);
+    }
+    let count_key = DataKey::EventSubmissionCount(id);
+    let next = cur.saturating_add(1);
+    env.storage().persistent().set(&count_key, &next);
+    touch_event_persistent(env, &count_key);
+    Ok(())
 }
 
 // ============================================================

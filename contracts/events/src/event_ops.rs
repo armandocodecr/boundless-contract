@@ -29,6 +29,8 @@ pub const PRIZE_CLAIM_WINDOW_SECS: u64 = 90 * 24 * 60 * 60;
 
 pub const MAX_APPLICANTS_PER_EVENT: u32 = 5_000;
 pub const MAX_CONTRIBUTORS_PER_EVENT: u32 = 5_000;
+pub const MAX_SUBMISSIONS_PER_EVENT: u32 = 5_000;
+pub const MAX_CONTENT_URI_LEN: u32 = 256;
 
 pub const MAX_REFUNDS_PER_BATCH: u32 = 25;
 
@@ -546,6 +548,12 @@ pub fn submit(
 
     applicant.require_auth();
 
+    // Reused rather than adding a new variant — stays inside the
+    // contracterror 50-variant cap (see BACKLOG.md L7 for precedent).
+    if content_uri.len() > MAX_CONTENT_URI_LEN {
+        return Err(Error::TitleTooLong);
+    }
+
     let existing = storage::get_submission(env, event_id, &applicant);
 
     if existing.is_none() {
@@ -554,6 +562,12 @@ pub fn submit(
             return Err(Error::ApplicantNotApplied);
         }
     }
+
+    // Reserve the slot before writing — Hackathon events have
+    // needs_application == false, so any address can call submit() with no
+    // prior gate. Without this cap, an attacker spamming fresh addresses
+    // grows persistent storage / rent burden without bound.
+    storage::append_submission(env, event_id, &applicant, MAX_SUBMISSIONS_PER_EVENT)?;
 
     let submitted_at = existing
         .as_ref()

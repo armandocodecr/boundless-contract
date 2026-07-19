@@ -204,6 +204,9 @@ pub enum DataKey {
 
     // Appended for two-step manager rotation to preserve key discriminants.
     PendingManager(u64),
+
+    // Appended to cap per-event submission storage growth (security fix).
+    EventSubmissionCount(u64),
 }
 
 // ============================================================

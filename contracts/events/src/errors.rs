@@ -38,6 +38,7 @@ pub enum Error {
     ApplicantNotApplied = 41,
     SubmissionNotFound = 42,
     SubmissionAlreadyExists = 43,
+    TooManySubmissions = 44,
 
     NoSubmissions = 50,
     InvalidWinnerPosition = 51,
