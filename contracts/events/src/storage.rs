@@ -464,13 +464,16 @@ pub fn submission_count(env: &Env, id: u64) -> u32 {
 /// entry (mirrors `append_contributor`/`append_applicant`). A no-op when the
 /// applicant already has a submission — re-submission updates the existing
 /// entry in place and must not recount against the cap.
+///
+/// Returns `Error::TooManyContributors` on cap-exceed — reused rather than
+/// a new variant since the errors enum is at the 50-case XDR cap.
 pub fn append_submission(env: &Env, id: u64, addr: &Address, cap: u32) -> Result<(), Error> {
     if get_submission(env, id, addr).is_some() {
         return Ok(());
     }
     let cur = submission_count(env, id);
     if cur >= cap {
-        return Err(Error::TooManySubmissions);
+        return Err(Error::TooManyContributors);
     }
     let count_key = DataKey::EventSubmissionCount(id);
     let next = cur.saturating_add(1);

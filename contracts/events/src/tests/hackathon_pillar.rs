@@ -364,7 +364,7 @@ fn submit_beyond_cap_reverts() {
     let err = expect_op_err(ctx.events.try_submit(&id, &ctx.applicant, &uri, &op));
     assert_eq!(
         err,
-        Error::TooManySubmissions,
+        Error::TooManyContributors,
         "a submission at cap + 1 must revert"
     );
 }
